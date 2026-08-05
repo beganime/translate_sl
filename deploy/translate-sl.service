@@ -1,0 +1,30 @@
+[Unit]
+Description=TranslateSL Django application
+After=network.target
+
+[Service]
+Type=simple
+User=translate
+Group=www-data
+WorkingDirectory=/opt/translate-sl
+EnvironmentFile=/etc/translate-sl.env
+RuntimeDirectory=translate-sl
+RuntimeDirectoryMode=0750
+UMask=0027
+ExecStart=/opt/translate-sl/.venv/bin/gunicorn \
+    --workers 2 \
+    --threads 2 \
+    --timeout 300 \
+    --bind unix:/run/translate-sl/gunicorn.sock \
+    translate_sl.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillSignal=SIGQUIT
+Restart=on-failure
+RestartSec=5
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/translate-sl/db.sqlite3 /opt/translate-sl/media /run/translate-sl
+
+[Install]
+WantedBy=multi-user.target

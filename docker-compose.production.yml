@@ -1,0 +1,42 @@
+services:
+  web:
+    container_name: translatesl-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    volumes:
+      - ./data/db.sqlite3:/app/db.sqlite3
+      - ./data/media:/app/media
+      - ./data/staticfiles:/app/staticfiles
+    networks:
+      - coolify
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "coolify"
+      traefik.http.middlewares.translatesl-gzip.compress: "true"
+      traefik.http.middlewares.translatesl-redirect.redirectscheme.scheme: "https"
+      traefik.http.routers.translatesl-http.entryPoints: "http"
+      traefik.http.routers.translatesl-http.middlewares: "translatesl-redirect"
+      traefik.http.routers.translatesl-http.rule: "Host(`translate.manager-sl.ru`) && PathPrefix(`/`)"
+      traefik.http.routers.translatesl-http.service: "translatesl-http"
+      traefik.http.routers.translatesl-https.entryPoints: "https"
+      traefik.http.routers.translatesl-https.middlewares: "translatesl-gzip"
+      traefik.http.routers.translatesl-https.rule: "Host(`translate.manager-sl.ru`) && PathPrefix(`/`)"
+      traefik.http.routers.translatesl-https.service: "translatesl-https"
+      traefik.http.routers.translatesl-https.tls: "true"
+      traefik.http.routers.translatesl-https.tls.certresolver: "letsencrypt"
+      traefik.http.services.translatesl-http.loadbalancer.server.port: "8000"
+      traefik.http.services.translatesl-https.loadbalancer.server.port: "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1',8000),5); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+networks:
+  coolify:
+    external: true

@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up TranslateSL SQLite database and private documents
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/opt/translate-sl/deploy/backup-container.sh
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/translate-sl
+ReadWritePaths=/var/backups/translate-sl

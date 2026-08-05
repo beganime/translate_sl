@@ -1,0 +1,66 @@
+{% extends "studio/base.html" %}
+{% block title %}{{ document.title }} · TranslateSL{% endblock %}
+{% block content %}
+<section class="review-top shell-wide">
+  <div>
+    <a class="back-link" href="{% url 'studio:dashboard' %}">← К документам</a>
+    <div class="review-title-row">
+      <span class="status status-{{ document.status }}"><i></i>{{ document.get_status_display }}</span>
+      <span class="muted">{{ document.template.name }} · {{ document.updated_at|date:"d.m.Y H:i" }}</span>
+    </div>
+    <h1>{{ document.title }}</h1>
+  </div>
+  <form method="post" action="{% url 'studio:reanalyze' document.pk %}">
+    {% csrf_token %}<button class="ghost-button" type="submit">↻ Повторить анализ ИИ</button>
+  </form>
+</section>
+
+{% if document.error_message %}
+<div class="shell-wide error-panel"><strong>Обработка остановлена</strong><p>{{ document.error_message }}</p></div>
+{% endif %}
+
+<section class="review-layout shell-wide">
+  <div class="preview-panel">
+    <div class="panel-toolbar">
+      <div><span class="panel-dot"></span><strong>Предпросмотр</strong></div>
+      <div class="tabs">
+        {% if document.generated_docx %}<a class="active" href="{% if document.generated_pdf %}{% url 'studio:file' document.pk 'generated_pdf' %}{% else %}{% url 'studio:preview' document.pk %}{% endif %}" target="preview-frame">Перевод</a>{% endif %}
+        <a {% if not document.generated_docx %}class="active"{% endif %} href="{% url 'studio:file' document.pk 'source_pdf' %}" target="preview-frame">Исходник</a>
+      </div>
+      <div class="toolbar-links">
+        {% if document.generated_docx %}<a href="{% url 'studio:file' document.pk 'generated_docx' %}?download=1">DOCX ↓</a>{% endif %}
+        {% if document.generated_pdf %}<a href="{% url 'studio:file' document.pk 'generated_pdf' %}?download=1">PDF ↓</a>{% endif %}
+      </div>
+    </div>
+    <iframe name="preview-frame" title="Предпросмотр документа" src="{% if document.generated_pdf %}{% url 'studio:file' document.pk 'generated_pdf' %}{% elif document.generated_docx %}{% url 'studio:preview' document.pk %}{% else %}{% url 'studio:file' document.pk 'source_pdf' %}{% endif %}"></iframe>
+  </div>
+
+  <form method="post" class="editor-panel" data-processing-form>
+    {% csrf_token %}
+    <div class="editor-heading">
+      <span class="pill">Извлечённые поля</span>
+      <h2>Проверьте значения</h2>
+      <p>{{ document.template.variables.count }} полей найдено по схеме шаблона.</p>
+    </div>
+    <div class="field-group compact">
+      <label for="{{ form.title.id_for_label }}">Название файла</label>{{ form.title }}{{ form.title.errors }}
+    </div>
+    <div class="variable-list">
+      {% for field in form %}
+        {% if field.name != 'title' %}
+        <div class="field-group compact">
+          <div class="field-label-row"><label for="{{ field.id_for_label }}">{{ field.label }}</label><code>{{ field.name|slice:"4:" }}</code></div>
+          {{ field }}{{ field.errors }}
+          {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        </div>
+        {% endif %}
+      {% empty %}<p class="empty-inline">У шаблона пока нет переменных. Добавьте их в админке.</p>{% endfor %}
+    </div>
+    <div class="editor-actions">
+      <button class="ghost-button" type="submit" name="action" value="save">Сохранить черновик</button>
+      <button class="button" type="submit" name="action" value="regenerate" data-submit-button>Обновить предпросмотр</button>
+      <button class="button button-dark" type="submit" name="action" value="finalize">Завершить</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

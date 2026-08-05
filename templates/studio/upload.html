@@ -1,0 +1,50 @@
+{% extends "studio/base.html" %}
+{% block title %}Новый скан · TranslateSL{% endblock %}
+{% block content %}
+<section class="shell page-intro">
+  <a class="back-link" href="{% url 'studio:dashboard' %}">← К документам</a>
+  <span class="pill">Шаг 01 · Загрузка</span>
+  <h1><em>Добавьте скан,</em><br>остальное найдёт агент</h1>
+  <p>Gemini прочитает PDF визуально, извлечёт поля выбранного шаблона и подготовит русскую версию для проверки.</p>
+</section>
+
+<section class="shell upload-grid">
+  <form method="post" enctype="multipart/form-data" class="form-card" data-processing-form>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="field-group">
+      <label for="{{ form.title.id_for_label }}">Название документа</label>
+      {{ form.title }}{{ form.title.errors }}
+    </div>
+    <div class="field-group">
+      <label for="{{ form.template.id_for_label }}">Шаблон перевода</label>
+      {{ form.template }}{{ form.template.errors }}
+      <small>Шаблоны и Jinja-переменные добавляются в <a href="{% url 'admin:studio_documenttemplate_changelist' %}">админке</a>.</small>
+    </div>
+    <div class="field-group">
+      <label>PDF-скан</label>
+      <label class="dropzone" for="{{ form.source_pdf.id_for_label }}">
+        {{ form.source_pdf }}
+        <span class="drop-mark">＋</span>
+        <strong data-file-name>Перетащите PDF сюда</strong>
+        <span>или нажмите, чтобы выбрать · до 50 МБ</span>
+      </label>
+      {{ form.source_pdf.errors }}
+    </div>
+    <button class="button button-wide" type="submit" data-submit-button>
+      <span>Отправить на распознавание</span><b>→</b>
+    </button>
+  </form>
+
+  <aside class="process-notes">
+    <div class="code-label">PROCESS / 03</div>
+    <ol>
+      <li><span>01</span><div><strong>Визуальное чтение</strong><p>Gemini видит текст, таблицы, печати и рукописные фрагменты на страницах PDF.</p></div></li>
+      <li><span>02</span><div><strong>Структурирование</strong><p>Агент возвращает значения строго по переменным выбранного шаблона.</p></div></li>
+      <li><span>03</span><div><strong>Русская версия</strong><p>Значения переводятся, подставляются в DOCX и открываются для вашей проверки.</p></div></li>
+    </ol>
+    <div class="privacy-note"><span>◆</span><p><strong>Локальное хранение.</strong> Исходники и результаты остаются в папке проекта. В Gemini отправляется только выбранный PDF.</p></div>
+  </aside>
+</section>
+{% endblock %}
+

@@ -1,0 +1,54 @@
+{% extends "studio/base.html" %}
+{% block title %}Документы · TranslateSL{% endblock %}
+{% block content %}
+<section class="hero shell">
+  <div class="eyebrow">AI DOCUMENT WORKBENCH</div>
+  <h1><em>Скан становится</em><br><strong>готовым переводом</strong><span class="spark">✦</span></h1>
+  <p>Загрузите PDF, извлеките данные через Gemini, проверьте русский перевод и соберите документ по вашему Word-шаблону.</p>
+  <div class="hero-actions">
+    <a class="button" href="{% url 'studio:upload' %}">Загрузить новый скан</a>
+    {% if request.user.is_staff %}<a class="ghost-link" href="{% url 'admin:studio_documenttemplate_changelist' %}">Настроить шаблоны →</a>{% endif %}
+  </div>
+</section>
+
+<section class="shell workspace-card">
+  <div class="workspace-head">
+    <div>
+      <span class="pill">Рабочая очередь</span>
+      <h2>Документы</h2>
+    </div>
+    <div class="metrics">
+      <div><strong>{{ documents|length }}</strong><span>в очереди</span></div>
+      <div><strong>{{ ready_count }}</strong><span>готово</span></div>
+      <div><strong>{{ template_count }}</strong><span>шаблонов</span></div>
+      <div class="ai-state {% if ai_ready %}is-ok{% endif %}"><i></i><span>{% if ai_ready %}Gemini готов{% else %}Нужен API-ключ{% endif %}</span></div>
+    </div>
+  </div>
+
+  {% if documents %}
+  <div class="document-table-wrap">
+    <table class="document-table">
+      <thead><tr><th>Документ</th><th>Шаблон</th><th>Статус</th><th>Обновлён</th><th></th></tr></thead>
+      <tbody>
+      {% for document in documents %}
+        <tr>
+          <td><a class="document-name" href="{% url 'studio:review' document.pk %}">{{ document.title }}</a><small>PDF{% if document.source_size %} · {{ document.source_size|filesizeformat }}{% else %} · файл недоступен{% endif %}</small></td>
+          <td>{{ document.template.name }}</td>
+          <td><span class="status status-{{ document.status }}"><i></i>{{ document.get_status_display }}</span></td>
+          <td>{{ document.updated_at|date:"d.m.Y · H:i" }}</td>
+          <td><a class="row-arrow" href="{% url 'studio:review' document.pk %}" aria-label="Открыть">→</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">⌁</div>
+    <h3>Очередь пока пуста</h3>
+    <p>Первый скан пройдёт весь путь прямо здесь.</p>
+    <a class="button" href="{% url 'studio:upload' %}">Выбрать PDF</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

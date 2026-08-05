@@ -1,0 +1,42 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}TranslateSL{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Cormorant+Garamond:ital,wght@1,300&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'studio/app.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <nav class="nav-shell">
+      <a class="brand" href="{% url 'studio:dashboard' %}">Translate<span>SL</span></a>
+      <div class="nav-links">
+        <a href="{% url 'studio:dashboard' %}">Документы</a>
+        {% if request.user.is_staff %}
+          <a href="{% url 'admin:index' %}">Шаблоны</a>
+          <a href="{% url 'admin:studio_aiconfiguration_changelist' %}">Настройки ИИ</a>
+        {% endif %}
+      </div>
+      {% if request.user.is_authenticated %}
+        <div class="nav-actions">
+          <a class="button button-small" href="{% url 'studio:upload' %}">Новый скан <span aria-hidden="true">↗</span></a>
+          <form method="post" action="{% url 'logout' %}" class="logout-form">{% csrf_token %}<button class="nav-logout" type="submit">Выйти</button></form>
+        </div>
+      {% endif %}
+    </nav>
+  </header>
+
+  {% if messages %}
+  <div class="toast-stack" aria-live="polite">
+    {% for message in messages %}<div class="toast toast-{{ message.tags }}">{{ message }}</div>{% endfor %}
+  </div>
+  {% endif %}
+
+  <main>{% block content %}{% endblock %}</main>
+  <script src="{% static 'studio/app.js' %}"></script>
+</body>
+</html>
