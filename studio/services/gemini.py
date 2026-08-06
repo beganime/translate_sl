@@ -1,5 +1,6 @@
 import base64
 import json
+from io import BytesIO
 import os
 import shutil
 import subprocess
@@ -9,6 +10,7 @@ from pathlib import Path
 
 import requests
 from django.conf import settings
+from docx import Document
 
 from studio.models import AIConfiguration
 
@@ -62,6 +64,30 @@ def _scan_parts(pdf_bytes):
     return parts
 
 
+def _source_parts(stored_file):
+    suffix = Path(stored_file.name).suffix.lower()
+    with stored_file.open("rb") as stream:
+        source_bytes = stream.read()
+    if suffix == ".pdf":
+        return _scan_parts(source_bytes)
+    if suffix in {".jpg", ".jpeg", ".png"}:
+        mime_type = "image/png" if suffix == ".png" else "image/jpeg"
+        return [{"inline_data": {
+            "mime_type": mime_type,
+            "data": base64.b64encode(source_bytes).decode("ascii"),
+        }}]
+    if suffix == ".docx":
+        document = Document(BytesIO(source_bytes))
+        paragraphs = [paragraph.text for paragraph in document.paragraphs]
+        for table in document.tables:
+            paragraphs.extend(" | ".join(cell.text for cell in row.cells) for row in table.rows)
+        text = "\n".join(item for item in paragraphs if item.strip())
+        if not text.strip():
+            raise GeminiError("В DOCX не найден текст для распознавания.")
+        return [{"text": f"Текст исходного DOCX:\n{text[:120000]}"}]
+    raise GeminiError("Поддерживаются PDF, DOCX, JPG и PNG.")
+
+
 def _response_schema(variables):
     properties = {}
     required = []
@@ -88,9 +114,6 @@ def extract_document(document):
     if not variables:
         raise GeminiError("У выбранного шаблона нет переменных для извлечения.")
 
-    with document.source_pdf.open("rb") as stream:
-        pdf_bytes = stream.read()
-
     prompt = "\n\n".join(filter(None, [
         config.system_prompt,
         document.template.extraction_prompt,
@@ -109,7 +132,7 @@ def extract_document(document):
         f"{config.model_name}:generateContent"
     )
     payload = {
-        "contents": [{"parts": [*_scan_parts(pdf_bytes), {"text": prompt}]}],
+        "contents": [{"parts": [*_source_parts(document.source_pdf), {"text": prompt}]}],
         "generationConfig": {
             "temperature": config.temperature,
             "responseMimeType": "application/json",

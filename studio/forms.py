@@ -1,23 +1,27 @@
+from pathlib import Path
+
 from django import forms
 
 from .models import SourceDocument
 
 
 class UploadDocumentForm(forms.ModelForm):
+    ALLOWED_EXTENSIONS = {".pdf", ".docx", ".jpg", ".jpeg", ".png"}
+
     class Meta:
         model = SourceDocument
         fields = ["title", "template", "source_pdf"]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "Например, Свидетельство — Иванов И.И."}),
-            "source_pdf": forms.FileInput(attrs={"accept": "application/pdf"}),
+            "source_pdf": forms.FileInput(attrs={"accept": ".pdf,.docx,.jpg,.jpeg,.png"}),
         }
 
     def clean_source_pdf(self):
         value = self.cleaned_data["source_pdf"]
-        if not value.name.lower().endswith(".pdf"):
-            raise forms.ValidationError("Нужен файл PDF.")
+        if Path(value.name).suffix.lower() not in self.ALLOWED_EXTENSIONS:
+            raise forms.ValidationError("Поддерживаются PDF, DOCX, JPG и PNG.")
         if value.size > 50 * 1024 * 1024:
-            raise forms.ValidationError("Размер PDF не должен превышать 50 МБ.")
+            raise forms.ValidationError("Размер файла не должен превышать 50 МБ.")
         return value
 
 

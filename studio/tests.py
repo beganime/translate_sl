@@ -10,7 +10,8 @@ from django.urls import reverse
 from docx import Document
 
 from .models import AIConfiguration, DocumentTemplate, SourceDocument, TemplateVariable
-from .services.gemini import _response_schema
+from .forms import UploadDocumentForm
+from .services.gemini import _response_schema, _source_parts
 from .services.rendering import render_document
 
 
@@ -38,6 +39,23 @@ class ModelTests(TestCase):
         self.assertIn("Найди имя", schema["properties"]["full_name"]["description"])
         self.assertNotIn("additionalProperties", schema)
 
+    def test_upload_form_accepts_supported_business_formats(self):
+        for name in ("scan.pdf", "scan.docx", "scan.jpg", "scan.png"):
+            upload = SimpleUploadedFile(name, b"test")
+            form = UploadDocumentForm(files={"source_pdf": upload})
+            self.assertNotIn("source_pdf", form.errors)
+
+    def test_docx_source_is_extracted_for_gemini(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source.docx"
+            word = Document()
+            word.add_paragraph("Passport number A123")
+            word.save(source)
+            with source.open("rb") as stream:
+                stored = SimpleUploadedFile("source.docx", stream.read())
+            parts = _source_parts(stored)
+            self.assertIn("Passport number A123", parts[0]["text"])
+
 
 class ViewTests(TestCase):
     def setUp(self):
@@ -53,6 +71,11 @@ class ViewTests(TestCase):
         response = self.client.get(reverse("studio:dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Скан становится")
+
+    def test_health_checks_database(self):
+        response = self.client.get(reverse("health"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
 
     def test_dashboard_survives_missing_source_file(self):
         SourceDocument.objects.create(

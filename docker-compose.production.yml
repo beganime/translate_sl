@@ -8,9 +8,8 @@ services:
     env_file:
       - .env.production
     volumes:
-      - ./data/db.sqlite3:/app/db.sqlite3
-      - ./data/media:/app/media
-      - ./data/staticfiles:/app/staticfiles
+      - translate_data:/data
+      - static_data:/app/staticfiles
     networks:
       - coolify
     labels:
@@ -31,7 +30,7 @@ services:
       traefik.http.services.translatesl-http.loadbalancer.server.port: "8000"
       traefik.http.services.translatesl-https.loadbalancer.server.port: "8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1',8000),5); s.close()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=5).read()"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -40,3 +39,7 @@ services:
 networks:
   coolify:
     external: true
+
+volumes:
+  translate_data:
+  static_data:

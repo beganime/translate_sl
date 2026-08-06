@@ -5,7 +5,7 @@
   <a class="back-link" href="{% url 'studio:dashboard' %}">← К документам</a>
   <span class="pill">Шаг 01 · Загрузка</span>
   <h1><em>Добавьте скан,</em><br>остальное найдёт агент</h1>
-  <p>Gemini прочитает PDF визуально, извлечёт поля выбранного шаблона и подготовит русскую версию для проверки.</p>
+  <p>Gemini прочитает PDF, DOCX, JPG или PNG, извлечёт поля выбранного шаблона и подготовит русскую версию для проверки.</p>
 </section>
 
 <section class="shell upload-grid">
@@ -22,12 +22,12 @@
       <small>Шаблоны и Jinja-переменные добавляются в <a href="{% url 'admin:studio_documenttemplate_changelist' %}">админке</a>.</small>
     </div>
     <div class="field-group">
-      <label>PDF-скан</label>
+      <label>Исходный документ</label>
       <label class="dropzone" for="{{ form.source_pdf.id_for_label }}">
         {{ form.source_pdf }}
         <span class="drop-mark">＋</span>
-        <strong data-file-name>Перетащите PDF сюда</strong>
-        <span>или нажмите, чтобы выбрать · до 50 МБ</span>
+        <strong data-file-name>Перетащите документ сюда</strong>
+        <span>PDF, DOCX, JPG или PNG · до 50 МБ</span>
       </label>
       {{ form.source_pdf.errors }}
     </div>
@@ -43,7 +43,7 @@
       <li><span>02</span><div><strong>Структурирование</strong><p>Агент возвращает значения строго по переменным выбранного шаблона.</p></div></li>
       <li><span>03</span><div><strong>Русская версия</strong><p>Значения переводятся, подставляются в DOCX и открываются для вашей проверки.</p></div></li>
     </ol>
-    <div class="privacy-note"><span>◆</span><p><strong>Локальное хранение.</strong> Исходники и результаты остаются в папке проекта. В Gemini отправляется только выбранный PDF.</p></div>
+    <div class="privacy-note"><span>◆</span><p><strong>Локальное хранение.</strong> Исходники и результаты остаются в хранилище сервиса. В Gemini отправляется только выбранный документ.</p></div>
   </aside>
 </section>
 {% endblock %}
