@@ -120,6 +120,8 @@ class SourceDocument(models.Model):
     edited_data = models.JSONField("Отредактированные данные", default=dict, blank=True)
     generated_docx = models.FileField("Готовый DOCX", upload_to="results/%Y/%m/", blank=True)
     generated_pdf = models.FileField("PDF для предпросмотра", upload_to="results/%Y/%m/", blank=True)
+    disk_source_key = models.CharField("Исходник в DiskSL", max_length=900, blank=True)
+    disk_result_key = models.CharField("Результат в DiskSL", max_length=900, blank=True)
     error_message = models.TextField("Ошибка", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

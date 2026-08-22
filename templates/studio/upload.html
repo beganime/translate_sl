@@ -11,6 +11,7 @@
 <section class="shell upload-grid">
   <form method="post" enctype="multipart/form-data" class="form-card" data-processing-form>
     {% csrf_token %}
+    {% if client_sl_id %}<input type="hidden" name="client_sl_id" value="{{ client_sl_id }}">{% endif %}
     {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
     <div class="field-group">
       <label for="{{ form.title.id_for_label }}">Название документа</label>
@@ -23,6 +24,13 @@
     </div>
     <div class="field-group">
       <label>Исходный документ</label>
+      {% if client_sl_id %}<small>Клиент: {{ client_sl_id }}. Показаны только оригиналы из его папки.</small>{% endif %}
+      <label for="{{ form.disk_source.id_for_label }}">Выбрать из DiskSL</label>
+      {{ form.disk_source }}{{ form.disk_source.errors }}
+      <small>Показываются файлы из папок «оригиналы». После подтверждения перевод вернётся в папку «переводы» этого студента.</small>
+    </div>
+    <div class="field-group">
+      <label>Или загрузить с компьютера</label>
       <label class="dropzone" for="{{ form.source_pdf.id_for_label }}">
         {{ form.source_pdf }}
         <span class="drop-mark">＋</span>

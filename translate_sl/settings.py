@@ -49,6 +49,7 @@ TEMPLATES = [{
         "django.template.context_processors.request",
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
+        "studio.context_processors.service_links",
     ]},
 }]
 WSGI_APPLICATION = "translate_sl.wsgi.application"
@@ -122,7 +123,23 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "studio:dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
+MANAGER_SL_URL = os.getenv("MANAGER_SL_URL", "https://manager-sl.ru/portal/dashboard/")
+MANAGER_SL_TRANSLATE_URL = os.getenv(
+    "MANAGER_SL_TRANSLATE_URL",
+    "https://manager-sl.ru/portal/integrations/translate-sl/",
+)
+MANAGER_SL_SSO_SECRET = os.getenv("MANAGER_SL_SSO_SECRET", "")
+MANAGER_SL_SSO_MAX_AGE = int(os.getenv("MANAGER_SL_SSO_MAX_AGE", "120"))
+DISK_SL_URL = os.getenv("DISK_SL_URL", "https://disk.manager-sl.ru/web/client/files")
+
 DATA_ENCRYPTION_SECRET = os.getenv("DATA_ENCRYPTION_SECRET", SECRET_KEY)
+
+DISK_S3_ENDPOINT = os.getenv("DISK_S3_ENDPOINT", "").rstrip("/")
+DISK_S3_REGION = os.getenv("DISK_S3_REGION", "ru-1")
+DISK_S3_BUCKET = os.getenv("DISK_S3_BUCKET", "")
+DISK_S3_ACCESS_KEY = os.getenv("DISK_S3_ACCESS_KEY", "")
+DISK_S3_SECRET_KEY = os.getenv("DISK_S3_SECRET_KEY", "")
+DISK_S3_KEY_PREFIX = os.getenv("DISK_S3_KEY_PREFIX", "disk/").strip("/") + "/"
 DATA_ENCRYPTION_SECRET_FALLBACKS = [
     value.strip() for value in os.getenv("DATA_ENCRYPTION_SECRET_FALLBACKS", "").split(",") if value.strip()
 ]

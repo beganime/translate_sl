@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.core.files import File
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
+from django.core import signing
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from docx import Document
@@ -77,6 +78,34 @@ class ViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
 
+    @override_settings(MANAGER_SL_SSO_SECRET="shared-test-secret", MANAGER_SL_SSO_MAX_AGE=120)
+    def test_manager_sl_sso_creates_local_session_and_keeps_client_context(self):
+        token = signing.dumps(
+            {
+                "email": "manager@manager-sl.ru",
+                "first_name": "Олеся",
+                "last_name": "Менеджер",
+                "is_staff": False,
+                "next": "/upload/?client=SL-2027-001",
+            },
+            key="shared-test-secret",
+            salt="manager-sl.translate-sso.v1",
+            compress=True,
+        )
+
+        response = self.client.get(reverse("manager_sl_sso"), {"token": token})
+
+        self.assertRedirects(response, "/upload/?client=SL-2027-001", fetch_redirect_response=False)
+        user = get_user_model().objects.get(email="manager@manager-sl.ru")
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(user.first_name, "Олеся")
+        self.assertEqual(str(self.client.session.get("_auth_user_id")), str(user.pk))
+
+    @override_settings(MANAGER_SL_SSO_SECRET="shared-test-secret", MANAGER_SL_SSO_MAX_AGE=120)
+    def test_manager_sl_sso_rejects_invalid_signature(self):
+        response = self.client.get(reverse("manager_sl_sso"), {"token": "not-a-token"})
+        self.assertEqual(response.status_code, 400)
+
     def test_dashboard_survives_missing_source_file(self):
         SourceDocument.objects.create(
             title="Missing scan", template=self.template, source_pdf="scans/missing.pdf"
@@ -127,6 +156,35 @@ class ViewTests(TestCase):
         document = SourceDocument.objects.get()
         self.assertRedirects(response, reverse("studio:review", args=[document.pk]))
         mocked_process.assert_called_once()
+
+    @patch("studio.views.process_document")
+    @patch("studio.views.download_original", return_value=("passport.pdf", b"%PDF-1.4\n%%EOF"))
+    @patch("studio.views.list_originals")
+    def test_upload_can_import_original_from_disksl(self, mocked_list, mocked_download, mocked_process):
+        disk_key = "disk/2027/Контракт/Иванов Иван (SL-001)/оригиналы/passport.pdf"
+        mocked_list.return_value = [{"key": disk_key, "label": "2027/.../passport.pdf", "size": 20}]
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("studio:upload"), {
+            "title": "Паспорт",
+            "template": self.template.pk,
+            "disk_source": disk_key,
+        })
+
+        document = SourceDocument.objects.get()
+        self.assertRedirects(response, reverse("studio:review", args=[document.pk]))
+        self.assertEqual(document.disk_source_key, disk_key)
+        # Django storage is allowed to disambiguate an existing filename
+        # (for example ``passport_Ab12Cd.pdf``).  The imported document must
+        # retain its safe format and content, not a particular storage suffix.
+        self.assertEqual(Path(document.source_pdf.name).suffix.lower(), ".pdf")
+        document.source_pdf.open("rb")
+        try:
+            self.assertEqual(document.source_pdf.read(), b"%PDF-1.4\n%%EOF")
+        finally:
+            document.source_pdf.close()
+        mocked_download.assert_called_once_with(disk_key)
+        mocked_process.assert_called_once_with(document)
 
 
 @override_settings(WORD_PDF_CONVERSION=False)

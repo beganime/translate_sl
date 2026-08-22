@@ -3,6 +3,7 @@ from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -11,6 +12,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from .forms import DocumentReviewForm, UploadDocumentForm
 from .models import AIConfiguration, DocumentTemplate, SourceDocument
 from .services.rendering import process_document, render_document
+from .services.disk import DiskUnavailable, download_original, list_originals, upload_translation
 
 
 @login_required
@@ -34,10 +36,30 @@ def dashboard(request):
 
 @login_required
 def upload_document(request):
+    client_sl_id = (request.GET.get("client") or request.POST.get("client_sl_id") or "").strip()[:40]
+    try:
+        disk_files = list_originals(client_sl_id=client_sl_id or None)
+    except Exception:
+        disk_files = []
+    disk_choices = [(item["key"], item["label"]) for item in disk_files]
     if request.method == "POST":
-        form = UploadDocumentForm(request.POST, request.FILES)
+        form = UploadDocumentForm(request.POST, request.FILES, disk_choices=disk_choices)
         if form.is_valid():
-            document = form.save()
+            document = form.save(commit=False)
+            disk_source_key = form.cleaned_data.get("disk_source")
+            if disk_source_key:
+                try:
+                    filename, content = download_original(disk_source_key)
+                    document.source_pdf.save(filename, ContentFile(content), save=False)
+                    document.disk_source_key = disk_source_key
+                except (DiskUnavailable, ValueError, OSError) as exc:
+                    form.add_error("disk_source", str(exc))
+                    return render(request, "studio/upload.html", {
+                        "form": form,
+                        "disk_files": disk_files,
+                        "client_sl_id": client_sl_id,
+                    })
+            document.save()
             try:
                 process_document(document)
                 messages.success(request, "Скан распознан. Проверьте найденные значения.")
@@ -45,8 +67,12 @@ def upload_document(request):
                 messages.error(request, "Обработка не завершена. Подробности показаны на странице документа.")
             return redirect("studio:review", pk=document.pk)
     else:
-        form = UploadDocumentForm()
-    return render(request, "studio/upload.html", {"form": form})
+        form = UploadDocumentForm(disk_choices=disk_choices)
+    return render(request, "studio/upload.html", {
+        "form": form,
+        "disk_files": disk_files,
+        "client_sl_id": client_sl_id,
+    })
 
 
 @login_required
@@ -65,8 +91,18 @@ def review_document(request, pk):
             try:
                 if action in {"regenerate", "finalize"}:
                     render_document(document, document.edited_data)
+                if action == "finalize" and document.disk_source_key and document.generated_docx:
+                    document.generated_docx.open("rb")
+                    try:
+                        document.disk_result_key = upload_translation(
+                            document.disk_source_key,
+                            Path(document.generated_docx.name).name,
+                            document.generated_docx.read(),
+                        )
+                    finally:
+                        document.generated_docx.close()
                 document.status = document.Status.READY if action == "finalize" else document.Status.REVIEW
-                document.save(update_fields=["title", "edited_data", "status", "error_message", "updated_at"])
+                document.save(update_fields=["title", "edited_data", "status", "error_message", "disk_result_key", "updated_at"])
                 messages.success(
                     request,
                     "Документ сохранён и готов к скачиванию." if action == "finalize" else
