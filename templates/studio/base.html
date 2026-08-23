@@ -16,6 +16,8 @@
       <a class="brand" href="{% url 'studio:dashboard' %}">Translate<span>SL</span></a>
       <div class="nav-links">
         <a href="{% url 'studio:dashboard' %}">Документы</a>
+        <a href="{{ manager_sl_url }}">ManagerSL</a>
+        <a href="{{ disk_sl_url }}" target="_blank" rel="noopener">DiskSL</a>
         {% if request.user.is_staff %}
           <a href="{% url 'admin:index' %}">Шаблоны</a>
           <a href="{% url 'admin:studio_aiconfiguration_changelist' %}">Настройки ИИ</a>

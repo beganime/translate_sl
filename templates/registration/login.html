@@ -6,6 +6,7 @@
     <span class="pill">Закрытый доступ</span>
     <h1>Вход для менеджеров</h1>
     <p>Введите логин и пароль, выданные администратором.</p>
+    <p><a class="button button-dark" href="{{ manager_sl_translate_url }}">Войти через ManagerSL</a></p>
     {% if form.errors %}<div class="error-panel">Неверный логин или пароль.</div>{% endif %}
     <form method="post">
       {% csrf_token %}

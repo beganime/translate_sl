@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -48,17 +49,42 @@ TEMPLATES = [{
         "django.template.context_processors.request",
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
+        "studio.context_processors.service_links",
     ]},
 }]
 WSGI_APPLICATION = "translate_sl.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-        "OPTIONS": {"timeout": 30},
+database_url = os.getenv("DATABASE_URL", "").strip()
+if database_url:
+    parsed_database_url = urlparse(database_url)
+    if parsed_database_url.scheme not in {"postgres", "postgresql"}:
+        raise ImproperlyConfigured("DATABASE_URL must use postgres:// or postgresql://.")
+    database_query = parse_qs(parsed_database_url.query)
+    database_options = {
+        key: values[-1]
+        for key, values in database_query.items()
+        if key in {"sslmode", "sslrootcert", "options"} and values
     }
-}
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(parsed_database_url.path.lstrip("/")),
+            "USER": unquote(parsed_database_url.username or ""),
+            "PASSWORD": unquote(parsed_database_url.password or ""),
+            "HOST": parsed_database_url.hostname or "",
+            "PORT": parsed_database_url.port or 5432,
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+            "OPTIONS": database_options,
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": Path(os.getenv("SQLITE_PATH", BASE_DIR / "db.sqlite3")),
+            "OPTIONS": {"timeout": 30},
+        }
+    }
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -83,7 +109,7 @@ STORAGES = {
     },
 }
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", BASE_DIR / "media"))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 60 * 1024 * 1024
@@ -97,7 +123,23 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "studio:dashboard"
 LOGOUT_REDIRECT_URL = "login"
 
+MANAGER_SL_URL = os.getenv("MANAGER_SL_URL", "https://manager-sl.ru/portal/dashboard/")
+MANAGER_SL_TRANSLATE_URL = os.getenv(
+    "MANAGER_SL_TRANSLATE_URL",
+    "https://manager-sl.ru/portal/integrations/translate-sl/",
+)
+MANAGER_SL_SSO_SECRET = os.getenv("MANAGER_SL_SSO_SECRET", "")
+MANAGER_SL_SSO_MAX_AGE = int(os.getenv("MANAGER_SL_SSO_MAX_AGE", "120"))
+DISK_SL_URL = os.getenv("DISK_SL_URL", "https://disk.manager-sl.ru/web/client/files")
+
 DATA_ENCRYPTION_SECRET = os.getenv("DATA_ENCRYPTION_SECRET", SECRET_KEY)
+
+DISK_S3_ENDPOINT = os.getenv("DISK_S3_ENDPOINT", "").rstrip("/")
+DISK_S3_REGION = os.getenv("DISK_S3_REGION", "ru-1")
+DISK_S3_BUCKET = os.getenv("DISK_S3_BUCKET", "")
+DISK_S3_ACCESS_KEY = os.getenv("DISK_S3_ACCESS_KEY", "")
+DISK_S3_SECRET_KEY = os.getenv("DISK_S3_SECRET_KEY", "")
+DISK_S3_KEY_PREFIX = os.getenv("DISK_S3_KEY_PREFIX", "disk/").strip("/") + "/"
 DATA_ENCRYPTION_SECRET_FALLBACKS = [
     value.strip() for value in os.getenv("DATA_ENCRYPTION_SECRET_FALLBACKS", "").split(",") if value.strip()
 ]
